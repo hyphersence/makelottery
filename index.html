@@ -97,6 +97,17 @@
       const resultArr = Array.from(lotto).sort((a, b) => a - b);
       document.getElementById('result').innerText = resultArr.join(', ');
     }
+    let forcedCount = 0;
+const MAX_FORCED = 2; // 4에서 2로 줄임
+
+for (const n of priorityCandidates) {
+  if (forcedCount >= MAX_FORCED) break;
+  if (!excludeNumbers.has(n)) {
+    lotto.add(n);
+    forcedCount++;
+  }
+}
+
   </script>
 </body>
 </html>
