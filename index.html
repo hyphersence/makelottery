@@ -2,70 +2,84 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<title>로또 자동 생성기 + 출현 빈도 바차트</title>
+<title>프리미엄 로또 자동 생성기 + 출현 빈도 차트</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Nanum+Gothic&display=swap');
+
   body {
-    font-family: '나눔고딕', sans-serif;
-    max-width: 600px;
-    margin: 30px auto;
-    padding: 0 15px;
-    text-align: center;
-    background: #f9f9f9;
+    font-family: 'Nanum Gothic', sans-serif;
+    max-width: 650px;
+    margin: 40px auto;
+    padding: 20px;
+    background: #f0f4f8;
+    color: #222;
   }
   h1 {
-    font-size: 2.8em;
+    font-size: 3em;
+    text-align: center;
     color: #004a99;
-    margin-bottom: 10px;
+    margin-bottom: 0.2em;
   }
   #result {
-    margin-top: 25px;
-    font-size: 3em;
-    font-weight: bold;
-    color: #d44040;
-    letter-spacing: 0.25em;
+    margin: 30px auto 20px;
+    font-size: 3.8em;
+    font-weight: 900;
+    color: #d32f2f;
+    text-align: center;
+    letter-spacing: 0.3em;
+    user-select: none;
+    background: linear-gradient(45deg, #e53935, #b71c1c);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
   button {
-    margin-top: 20px;
-    padding: 14px 30px;
-    font-size: 1.3em;
-    background-color: #0077cc;
-    border: none;
+    display: block;
+    margin: 0 auto 40px;
+    padding: 16px 40px;
+    font-size: 1.6em;
+    font-weight: bold;
     border-radius: 8px;
+    border: none;
+    background-color: #1565c0;
     color: white;
     cursor: pointer;
+    box-shadow: 0 6px 10px rgba(21, 101, 192, 0.4);
     transition: background-color 0.3s ease;
   }
   button:hover {
-    background-color: #005fa3;
+    background-color: #0d47a1;
   }
   canvas {
-    margin-top: 40px;
-    max-width: 100%;
-    height: 250px;
+    width: 100% !important;
+    height: 280px !important;
+    border-radius: 12px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.1);
     background: white;
-    border-radius: 10px;
-    box-shadow: 0 0 10px #ccc;
   }
   #info {
-    margin-top: 15px;
-    font-size: 1em;
+    font-size: 1.1em;
+    text-align: center;
     color: #555;
+    margin-top: -30px;
+    margin-bottom: 20px;
+    user-select: none;
   }
 </style>
 </head>
 <body>
 
-<h1>로또 자동 생성기 + 출현 빈도 바차트</h1>
+<h1>프리미엄 로또 자동 생성기</h1>
 
-<button onclick="generateLotto()">번호 생성</button>
+<button id="generateBtn">번호 생성</button>
+
 <div id="result">- - - - - -</div>
-<div id="info">최근 10회차 데이터를 기반으로 1~45 숫자 출현 횟수를 시각화합니다.</div>
+<div id="info">최근 10회차 데이터 기반 1~45 숫자 출현 빈도 시각화</div>
 
-<canvas id="freqChart" width="600" height="250"></canvas>
+<canvas id="freqChart" width="600" height="280"></canvas>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  // --- 예시: 최근 10회차 로또 번호 데이터 (6개씩)
-  // 실제 데이터 있으면 바꾸세요.
+  // 최근 10회차 로또 번호 데이터 예시 (6개씩)
   const recentDraws = [
     [3, 11, 15, 29, 35, 44],
     [7, 14, 18, 22, 33, 38],
@@ -79,65 +93,103 @@
     [3, 10, 15, 21, 32, 41]
   ];
 
-  // 출현 횟수 배열(1~45 인덱스 0~44)
-  let freq = new Array(45).fill(0);
-
-  function calcFrequency() {
-    freq.fill(0);
-    recentDraws.forEach(draw => {
+  // 출현 빈도 계산 함수
+  function calculateFrequency(draws) {
+    const freq = Array(45).fill(0);
+    draws.forEach(draw => {
       draw.forEach(num => {
         freq[num - 1]++;
       });
     });
+    return freq;
   }
 
-  // 캔버스 바 차트 그리기
-  function drawBarChart() {
-    const canvas = document.getElementById('freqChart');
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // 균등하고 매번 다르게 6개 생성하는 함수 (Fisher-Yates 셔플)
+  function generateUniqueLottoNumbers() {
+    const numbers = Array.from({length: 45}, (_, i) => i + 1);
+    for(let i = numbers.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
+    }
+    return numbers.slice(0, 6).sort((a,b) => a - b);
+  }
 
-    const maxFreq = Math.max(...freq);
-    const barWidth = canvas.width / 45;
-    const chartHeight = canvas.height - 40;
+  const ctx = document.getElementById('freqChart').getContext('2d');
+  let chart;
 
-    for (let i = 0; i < 45; i++) {
-      const barHeight = (freq[i] / maxFreq) * chartHeight;
-      const x = i * barWidth;
-      const y = canvas.height - barHeight - 20;
+  function renderChart(freq) {
+    if(chart) chart.destroy();
 
-      // 막대 색상 (빈도 높을수록 진한 파랑)
-      const blueIntensity = Math.floor((freq[i] / maxFreq) * 200) + 55;
-      ctx.fillStyle = `rgb(0, 0, ${blueIntensity})`;
-      ctx.fillRect(x + 1, y, barWidth - 2, barHeight);
-
-      // 번호 표시
-      ctx.fillStyle = '#000';
-      ctx.font = '10px 나눔고딕, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(i + 1, x + barWidth / 2, canvas.height - 5);
-
-      // 빈도 숫자 표시 (막대 위)
-      if (freq[i] > 0) {
-        ctx.fillText(freq[i], x + barWidth / 2, y - 5);
+    chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: Array.from({length: 45}, (_, i) => i + 1),
+        datasets: [{
+          label: '출현 횟수',
+          data: freq,
+          backgroundColor: freq.map(count => `rgba(21, 101, 192, ${0.3 + count * 0.15})`),
+          borderColor: 'rgba(21, 101, 192, 1)',
+          borderWidth: 1,
+          borderRadius: 4,
+          hoverBackgroundColor: 'rgba(21, 101, 192, 0.7)'
+        }]
+      },
+      options: {
+        animation: {
+          duration: 1000,
+          easing: 'easeOutQuart'
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            stepSize: 1,
+            max: Math.max(...freq) + 1,
+            ticks: {
+              color: '#444',
+              font: {size: 14}
+            },
+            grid: {
+              color: '#ddd'
+            }
+          },
+          x: {
+            ticks: {
+              color: '#333',
+              font: {size: 12}
+            },
+            grid: {
+              display: false
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            labels: {
+              font: {size: 16},
+              color: '#004a99'
+            }
+          },
+          tooltip: {
+            enabled: true,
+            callbacks: {
+              label: context => `횟수: ${context.parsed.y}`
+            }
+          }
+        },
+        responsive: true,
+        maintainAspectRatio: false
       }
-    }
+    });
   }
 
-  // 중복 없이 6개 랜덤 숫자 생성
-  function generateLotto() {
-    const lottoSet = new Set();
-    while (lottoSet.size < 6) {
-      const n = Math.floor(Math.random() * 45) + 1;
-      lottoSet.add(n);
-    }
-    const lottoNums = Array.from(lottoSet).sort((a,b) => a-b);
-    document.getElementById('result').innerText = lottoNums.join('  ');
-  }
+  // 초기 빈도 차트 렌더
+  const freq = calculateFrequency(recentDraws);
+  renderChart(freq);
 
-  // 초기 빈도 계산 및 차트 그리기
-  calcFrequency();
-  drawBarChart();
+  document.getElementById('generateBtn').addEventListener('click', () => {
+    const lottoNums = generateUniqueLottoNumbers();
+    document.getElementById('result').textContent = lottoNums.join('  ');
+  });
 </script>
 
 </body>
