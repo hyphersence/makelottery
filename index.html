@@ -44,3 +44,149 @@
       background-color: #0d47a1;
     }
     #freqChart {
+      display: block;
+      margin: 40px auto 0;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      background: white;
+      width: 600px;
+      height: 280px;
+    }
+    #info {
+      font-size: 1.1em;
+      color: #555;
+      margin-bottom: 20px;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+
+<h1>프리미엄 로또 자동 생성기</h1>
+
+<button id="generateBtn">번호 생성</button>
+
+<div id="result">- - - - - -</div>
+<div id="info">최근 10회차 데이터 기반 1~45 숫자 출현 빈도 시각화</div>
+
+<canvas id="freqChart" width="600" height="280"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const recentDraws = [
+    [3, 11, 15, 29, 35, 44],
+    [7, 14, 18, 22, 33, 38],
+    [1, 6, 17, 23, 27, 40],
+    [2, 8, 13, 21, 30, 39],
+    [4, 10, 16, 25, 34, 42],
+    [5, 9, 19, 24, 31, 43],
+    [7, 12, 18, 26, 33, 45],
+    [1, 11, 20, 22, 29, 37],
+    [6, 14, 17, 23, 28, 40],
+    [3, 10, 15, 21, 32, 41]
+  ];
+
+  function calculateFrequency(draws) {
+    const freq = Array(45).fill(0);
+    draws.forEach(draw => {
+      draw.forEach(num => {
+        freq[num - 1]++;
+      });
+    });
+    return freq;
+  }
+
+  function generateUniqueLottoNumbers() {
+    const numbers = Array.from({length: 45}, (_, i) => i + 1);
+    for(let i = numbers.length -1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
+    }
+    return numbers.slice(0,6).sort((a,b) => a - b);
+  }
+
+  const ctx = document.getElementById('freqChart').getContext('2d');
+  let chart;
+
+  function renderChart(freq) {
+    if(chart) chart.destroy();
+
+    chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: Array.from({length: 45}, (_, i) => i + 1),
+        datasets: [{
+          label: '출현 횟수',
+          data: freq,
+          backgroundColor: freq.map(count => {
+            const alpha = 0.3 + Math.min(count * 0.15, 0.9);
+            return `rgba(21, 101, 192, ${alpha})`;
+          }),
+          borderColor: 'rgba(21, 101, 192, 0.8)',
+          borderWidth: 1,
+          borderRadius: 6,
+          hoverBackgroundColor: 'rgba(21, 101, 192, 0.7)',
+          barPercentage: 0.85,
+          categoryPercentage: 0.9
+        }]
+      },
+      options: {
+        animation: {
+          duration: 1000,
+          easing: 'easeOutQuart'
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              color: '#444',
+              font: {size: 14}
+            },
+            grid: {
+              color: '#ddd'
+            }
+          },
+          x: {
+            ticks: {
+              color: '#333',
+              font: {size: 12}
+            },
+            grid: {
+              display: false
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            labels: {
+              font: {size: 16},
+              color: '#004a99'
+            }
+          },
+          tooltip: {
+            enabled: true,
+            backgroundColor: 'rgba(21,101,192,0.9)',
+            titleFont: {size: 14, weight: 'bold'},
+            bodyFont: {size: 14},
+            callbacks: {
+              label: ctx => `출현 횟수: ${ctx.parsed.y}`
+            }
+          }
+        },
+        responsive: false,
+        maintainAspectRatio: false
+      }
+    });
+  }
+
+  const freq = calculateFrequency(recentDraws);
+  renderChart(freq);
+
+  document.getElementById('generateBtn').addEventListener('click', () => {
+    const lottoNums = generateUniqueLottoNumbers();
+    document.getElementById('result').textContent = lottoNums.join(', ');
+  });
+</script>
+
+</body>
+</html>
