@@ -1,47 +1,101 @@
-﻿<!DOCTYPE html>
+<!-- lotto.html -->
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>로또번호 자동 생성기</title>
+  <meta charset="UTF-8" />
+  <title>로또 자동 생성기</title>
   <style>
-    body { font-family: 'Arial', sans-serif; text-align: center; padding: 50px; }
-    h1 { color: #2c3e50; }
-    button {
-      padding: 10px 20px;
-      font-size: 18px;
-      background-color: #27ae60;
-      color: white;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      margin-top: 20px;
-    }
-    button:hover {
-      background-color: #1e8449;
-    }
-    .numbers {
-      margin-top: 30px;
-      font-size: 24px;
-      color: #2980b9;
-    }
+    body { font-family: '나눔고딕', sans-serif; padding: 20px; max-width: 400px; }
+    input[type="text"] { width: 100%; padding: 6px; margin-bottom: 10px; }
+    label { font-weight: bold; display: block; margin-top: 15px; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+    #result { margin-top: 20px; font-size: 20px; font-weight: bold; color: #0077cc; }
   </style>
 </head>
 <body>
-  <h1>🎲 로또번호 자동 생성기</h1>
-  <button onclick="generateLotto()">번호 생성하기</button>
-  <div class="numbers" id="lottoNumbers">👉 여기에 번호가 나타납니다</div>
+  <h1>로또 자동 생성기</h1>
+
+  <label>직접 제외할 번호 입력 (쉼표로 구분, 예: 3,15,22)</label>
+  <input type="text" id="excludeInput" placeholder="제외 번호 입력" />
+
+  <label>직접 우선 선택할 번호 입력 (쉼표로 구분, 예: 7,17)</label>
+  <input type="text" id="priorityInput" placeholder="우선 번호 입력" />
+
+  <label>
+    <input type="checkbox" id="excludeLastDraw" checked />
+    지난 회차 번호 제외하기 (기본값: 제외함)
+  </label>
+
+  <button onclick="generateLotto()">번호 생성</button>
+
+  <p id="result"></p>
 
   <script>
+    // 과거 많이 나온 번호 상위 10개 예시 (임의 데이터)
+    const frequentNumbers = [1, 7, 17, 23, 27, 33, 38, 40, 43, 45];
+
+    // 지난 회차 번호 예시 (실제 데이터를 넣으세요)
+    const lastDraw = [7, 13, 18, 22, 33, 38];
+
+    function parseNumberInput(str) {
+      return str
+        .split(',')
+        .map(x => parseInt(x.trim()))
+        .filter(x => !isNaN(x) && x >= 1 && x <= 45);
+    }
+
     function generateLotto() {
-      const numbers = [];
-      while (numbers.length < 6) {
-        const num = Math.floor(Math.random() * 45) + 1;
-        if (!numbers.includes(num)) {
-          numbers.push(num);
+      const excludeLast = document.getElementById('excludeLastDraw').checked;
+      const excludeInput = document.getElementById('excludeInput').value;
+      const priorityInput = document.getElementById('priorityInput').value;
+
+      const userExclude = parseNumberInput(excludeInput);
+      const userPriority = parseNumberInput(priorityInput);
+
+      const excludeNumbers = new Set([...userExclude]);
+      if (excludeLast) {
+        lastDraw.forEach(n => excludeNumbers.add(n));
+      }
+
+      const lotto = new Set();
+
+      // 1) 우선 번호 넣기 (userPriority + frequentNumbers 중 제외 안된 번호)
+      const priorityCandidates = [...userPriority];
+
+      // 만약 우선 번호가 6개 넘으면 앞 6개만 사용
+      priorityCandidates.splice(6);
+
+      // 우선 번호 6개 미만일 경우 frequentNumbers로 채움
+      if (priorityCandidates.length < 6) {
+        frequentNumbers.forEach(n => {
+          if (priorityCandidates.length >= 6) return;
+          if (!priorityCandidates.includes(n) && !excludeNumbers.has(n)) {
+            priorityCandidates.push(n);
+          }
+        });
+      }
+
+      // 2) lotto 세트에 우선 번호 추가 (최대 4개까지만 강제 추가, 나머지는 랜덤에서 선택)
+      let forcedCount = 0;
+      for (const n of priorityCandidates) {
+        if (forcedCount >= 4) break; // 강제로 4개까지만 포함
+        if (!excludeNumbers.has(n)) {
+          lotto.add(n);
+          forcedCount++;
         }
       }
-      numbers.sort((a, b) => a - b);
-      document.getElementById('lottoNumbers').textContent = `🎯 ${numbers.join(' , ')}`;
+
+      // 3) 6개 되도록 나머지 랜덤 번호 추가 (1~45 사이, 중복 및 제외 번호 없이)
+      while (lotto.size < 6) {
+        const candidate = Math.floor(Math.random() * 45) + 1;
+        if (!lotto.has(candidate) && !excludeNumbers.has(candidate)) {
+          lotto.add(candidate);
+        }
+      }
+
+      // 결과 출력
+      const resultArr = Array.from(lotto).sort((a, b) => a - b);
+      document.getElementById('result').innerText = resultArr.join(', ');
     }
   </script>
 </body>
