@@ -149,4 +149,46 @@
             }
           },
           x: {
-            t
+            ticks: {
+              color: '#333',
+              font: {size: 12}
+            },
+            grid: {
+              display: false
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            labels: {
+              font: {size: 16},
+              color: '#004a99'
+            }
+          },
+          tooltip: {
+            enabled: true,
+            backgroundColor: 'rgba(21,101,192,0.9)',
+            titleFont: {size: 14, weight: 'bold'},
+            bodyFont: {size: 14},
+            callbacks: {
+              label: ctx => `출현 횟수: ${ctx.parsed.y}`
+            }
+          }
+        },
+        responsive: false,
+        maintainAspectRatio: false
+      }
+    });
+  }
+
+  const freq = calculateFrequency(recentDraws);
+  renderChart(freq);
+
+  document.getElementById('generateBtn').addEventListener('click', () => {
+    const lottoNums = generateUniqueLottoNumbers();
+    document.getElementById('result').textContent = lottoNums.join(',  ');
+  });
+</script>
+
+</body>
+</html>
