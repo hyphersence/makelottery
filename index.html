@@ -1,113 +1,144 @@
-<!-- lotto.html -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <title>로또 자동 생성기</title>
-  <style>
-    body { font-family: '나눔고딕', sans-serif; padding: 20px; max-width: 400px; }
-    input[type="text"] { width: 100%; padding: 6px; margin-bottom: 10px; }
-    label { font-weight: bold; display: block; margin-top: 15px; }
-    button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
-    #result { margin-top: 20px; font-size: 20px; font-weight: bold; color: #0077cc; }
-  </style>
+<meta charset="UTF-8" />
+<title>로또 자동 생성기 + 출현 빈도 바차트</title>
+<style>
+  body {
+    font-family: '나눔고딕', sans-serif;
+    max-width: 600px;
+    margin: 30px auto;
+    padding: 0 15px;
+    text-align: center;
+    background: #f9f9f9;
+  }
+  h1 {
+    font-size: 2.8em;
+    color: #004a99;
+    margin-bottom: 10px;
+  }
+  #result {
+    margin-top: 25px;
+    font-size: 3em;
+    font-weight: bold;
+    color: #d44040;
+    letter-spacing: 0.25em;
+  }
+  button {
+    margin-top: 20px;
+    padding: 14px 30px;
+    font-size: 1.3em;
+    background-color: #0077cc;
+    border: none;
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  button:hover {
+    background-color: #005fa3;
+  }
+  canvas {
+    margin-top: 40px;
+    max-width: 100%;
+    height: 250px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 0 10px #ccc;
+  }
+  #info {
+    margin-top: 15px;
+    font-size: 1em;
+    color: #555;
+  }
+</style>
 </head>
 <body>
-  <h1>로또 자동 생성기</h1>
 
-  <label>직접 제외할 번호 입력 (쉼표로 구분, 예: 3,15,22)</label>
-  <input type="text" id="excludeInput" placeholder="제외 번호 입력" />
+<h1>로또 자동 생성기 + 출현 빈도 바차트</h1>
 
-  <label>직접 우선 선택할 번호 입력 (쉼표로 구분, 예: 7,17)</label>
-  <input type="text" id="priorityInput" placeholder="우선 번호 입력" />
+<button onclick="generateLotto()">번호 생성</button>
+<div id="result">- - - - - -</div>
+<div id="info">최근 10회차 데이터를 기반으로 1~45 숫자 출현 횟수를 시각화합니다.</div>
 
-  <label>
-    <input type="checkbox" id="excludeLastDraw" checked />
-    지난 회차 번호 제외하기 (기본값: 제외함)
-  </label>
+<canvas id="freqChart" width="600" height="250"></canvas>
 
-  <button onclick="generateLotto()">번호 생성</button>
+<script>
+  // --- 예시: 최근 10회차 로또 번호 데이터 (6개씩)
+  // 실제 데이터 있으면 바꾸세요.
+  const recentDraws = [
+    [3, 11, 15, 29, 35, 44],
+    [7, 14, 18, 22, 33, 38],
+    [1, 6, 17, 23, 27, 40],
+    [2, 8, 13, 21, 30, 39],
+    [4, 10, 16, 25, 34, 42],
+    [5, 9, 19, 24, 31, 43],
+    [7, 12, 18, 26, 33, 45],
+    [1, 11, 20, 22, 29, 37],
+    [6, 14, 17, 23, 28, 40],
+    [3, 10, 15, 21, 32, 41]
+  ];
 
-  <p id="result"></p>
+  // 출현 횟수 배열(1~45 인덱스 0~44)
+  let freq = new Array(45).fill(0);
 
-  <script>
-    // 과거 많이 나온 번호 상위 10개 예시 (임의 데이터)
-    const frequentNumbers = [1, 7, 17, 23, 27, 33, 38, 40, 43, 45];
-
-    // 지난 회차 번호 예시 (실제 데이터를 넣으세요)
-    const lastDraw = [7, 13, 18, 22, 33, 38];
-
-    function parseNumberInput(str) {
-      return str
-        .split(',')
-        .map(x => parseInt(x.trim()))
-        .filter(x => !isNaN(x) && x >= 1 && x <= 45);
-    }
-
-    function generateLotto() {
-      const excludeLast = document.getElementById('excludeLastDraw').checked;
-      const excludeInput = document.getElementById('excludeInput').value;
-      const priorityInput = document.getElementById('priorityInput').value;
-
-      const userExclude = parseNumberInput(excludeInput);
-      const userPriority = parseNumberInput(priorityInput);
-
-      const excludeNumbers = new Set([...userExclude]);
-      if (excludeLast) {
-        lastDraw.forEach(n => excludeNumbers.add(n));
-      }
-
-      const lotto = new Set();
-
-      // 1) 우선 번호 넣기 (userPriority + frequentNumbers 중 제외 안된 번호)
-      const priorityCandidates = [...userPriority];
-
-      // 만약 우선 번호가 6개 넘으면 앞 6개만 사용
-      priorityCandidates.splice(6);
-
-      // 우선 번호 6개 미만일 경우 frequentNumbers로 채움
-      if (priorityCandidates.length < 6) {
-        frequentNumbers.forEach(n => {
-          if (priorityCandidates.length >= 6) return;
-          if (!priorityCandidates.includes(n) && !excludeNumbers.has(n)) {
-            priorityCandidates.push(n);
-          }
-        });
-      }
-
-      // 2) lotto 세트에 우선 번호 추가 (최대 4개까지만 강제 추가, 나머지는 랜덤에서 선택)
-      let forcedCount = 0;
-      for (const n of priorityCandidates) {
-        if (forcedCount >= 4) break; // 강제로 4개까지만 포함
-        if (!excludeNumbers.has(n)) {
-          lotto.add(n);
-          forcedCount++;
-        }
-      }
-
-      // 3) 6개 되도록 나머지 랜덤 번호 추가 (1~45 사이, 중복 및 제외 번호 없이)
-      while (lotto.size < 6) {
-        const candidate = Math.floor(Math.random() * 45) + 1;
-        if (!lotto.has(candidate) && !excludeNumbers.has(candidate)) {
-          lotto.add(candidate);
-        }
-      }
-
-      // 결과 출력
-      const resultArr = Array.from(lotto).sort((a, b) => a - b);
-      document.getElementById('result').innerText = resultArr.join(', ');
-    }
-    let forcedCount = 0;
-const MAX_FORCED = 2; // 4에서 2로 줄임
-
-for (const n of priorityCandidates) {
-  if (forcedCount >= MAX_FORCED) break;
-  if (!excludeNumbers.has(n)) {
-    lotto.add(n);
-    forcedCount++;
+  function calcFrequency() {
+    freq.fill(0);
+    recentDraws.forEach(draw => {
+      draw.forEach(num => {
+        freq[num - 1]++;
+      });
+    });
   }
-}
 
-  </script>
+  // 캔버스 바 차트 그리기
+  function drawBarChart() {
+    const canvas = document.getElementById('freqChart');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const maxFreq = Math.max(...freq);
+    const barWidth = canvas.width / 45;
+    const chartHeight = canvas.height - 40;
+
+    for (let i = 0; i < 45; i++) {
+      const barHeight = (freq[i] / maxFreq) * chartHeight;
+      const x = i * barWidth;
+      const y = canvas.height - barHeight - 20;
+
+      // 막대 색상 (빈도 높을수록 진한 파랑)
+      const blueIntensity = Math.floor((freq[i] / maxFreq) * 200) + 55;
+      ctx.fillStyle = `rgb(0, 0, ${blueIntensity})`;
+      ctx.fillRect(x + 1, y, barWidth - 2, barHeight);
+
+      // 번호 표시
+      ctx.fillStyle = '#000';
+      ctx.font = '10px 나눔고딕, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(i + 1, x + barWidth / 2, canvas.height - 5);
+
+      // 빈도 숫자 표시 (막대 위)
+      if (freq[i] > 0) {
+        ctx.fillText(freq[i], x + barWidth / 2, y - 5);
+      }
+    }
+  }
+
+  // 중복 없이 6개 랜덤 숫자 생성
+  function generateLotto() {
+    const lottoSet = new Set();
+    while (lottoSet.size < 6) {
+      const n = Math.floor(Math.random() * 45) + 1;
+      lottoSet.add(n);
+    }
+    const lottoNums = Array.from(lottoSet).sort((a,b) => a-b);
+    document.getElementById('result').innerText = lottoNums.join('  ');
+  }
+
+  // 초기 빈도 계산 및 차트 그리기
+  calcFrequency();
+  drawBarChart();
+</script>
+
 </body>
 </html>
